@@ -1,9 +1,26 @@
 const pool = require('../database/config');
 
+async function query(q) {
+  const client = await pool.connect();
+  let res;
+  try {
+    await client.query("BEGIN");
+    try {
+      res = await client.query(q);
+      await client.query("COMMIT");
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    }
+  } finally {
+    client.release();
+  }
+  return res;
+}
+
 module.exports.expenseTrends = async (req, res) => {
-    pool.connect((err, client, done) => {
-        const query = 
-            `SELECT category, icon_url
+  try {
+    const selectQuery =  `SELECT category, icon_url
             FROM (SELECT
                 category, icon_url,
                 DATE_TRUNC('month', date_time)
@@ -18,31 +35,32 @@ module.exports.expenseTrends = async (req, res) => {
             GROUP BY category, icon_url
             HAVING COUNT(category) > 6;`;
 
-        client.query(query, (error, result) => {
-            done();
-            if (error) {
-                res.status(400).json({error})
-            } 
-            if(result.rows < '1') {
-                res.status(404).send({
-                status: 'Failed',
-                message: 'No expense trend for this user',
-                });
-            } else {
-                res.status(200).send({
-                    status: 'Success',
-                    message: 'Successfully returned expense trend.',
-                    data: result.rows,
-                });
-            }
+    const { rows } = await query(selectQuery);
+
+   if(rows < '1') {
+        res.status(404).send({
+        status: 'Failed',
+        message: 'No expense trend for this user',
         });
+    } else {
+        res.status(200).send({
+            status: 'Success',
+            message: 'Successfully returned expense trend.',
+            data: rows,
+        });
+    }
+  } catch (err) {
+    res.status(500).send({
+      status: "failed",
+      message: "Error while Getting expense trend:" + err,
     });
+  }
 };
 
+
 module.exports.getAllWithTypeData = async (req, res) => {
-    pool.connect((err, client, done) => {
-        const query = 
-            `SELECT 
+  try {
+    const selectQuery =  `SELECT 
             'total sum' AS type, 
             sum(amount) AS sum 
             FROM 
@@ -57,32 +75,34 @@ module.exports.getAllWithTypeData = async (req, res) => {
                         AND date_time >= date_trunc('month', now()) - interval '12 month' 
                         AND date_time < date_trunc('month', now()) 
             GROUP BY 
-            type;`
+            type;`;
 
-        client.query(query, (error, result) => {
-            done();
-            if (error) {
-                res.status(400).json({error})
-            } 
-            if(result.rows < '1') {
-                res.status(404).send({
-                status: 'Failed',
-                message: 'No transactions for this user',
-                });
-            } else {
-                res.status(200).send({
-                    status: 'Success',
-                    message: 'Successfully returned transactions by type.',
-                    data: result.rows,
-                });
-            }
+    const { rows } = await query(selectQuery);
+
+   if(rows < '1') {
+        res.status(404).send({
+        status: 'Failed',
+        message: 'No expense trend by type for this user',
         });
+    } else {
+        res.status(200).send({
+            status: 'Success',
+            message: 'Successfully returned transactions by type.',
+            data: rows,
+        });
+    }
+  } catch (err) {
+    res.status(500).send({
+      status: "failed",
+      message: "Error while Getting transactions by type:" + err,
     });
+  }
 };
 
-module.exports.getExpensePerMonth= async (req, res) => {
-    pool.connect((err, client, done) => {
-        const query = 
+
+module.exports.getExpensePerMonth = async (req, res) => {
+  try {
+    const selectQuery =
            `SELECT
             category, 
             DATE_TRUNC('month', date_time)
@@ -107,31 +127,33 @@ module.exports.getExpensePerMonth= async (req, res) => {
             GROUP BY category, month_time
             ORDER BY month_time DESC;`
 
-        client.query(query, (error, result) => {
-            done();
-            if (error) {
-                res.status(400).json({error})
-            } 
-            if(result.rows < '1') {
-                res.status(404).send({
-                status: 'Failed',
-                message: 'No expense trend for this user',
-                });
-            } else {
-                res.status(200).send({
-                    status: 'Success',
-                    message: 'Successfully returned expense trend per month.',
-                    data: result.rows,
-                });
-            }
+    const { rows } = await query(selectQuery);
+
+   if(rows < '1') {
+        res.status(404).send({
+        status: 'Failed',
+        message: 'No expense trend per month for this user',
         });
+    } else {
+        res.status(200).send({
+            status: 'Success',
+            message: 'Successfully returned expense trend per month',
+            data: rows,
+        });
+    }
+  } catch (err) {
+    res.status(500).send({
+      status: "failed",
+      message: "Error while Getting transactions per month:" + err,
     });
+  }
 };
 
+
 module.exports.getTopFiveExpenses = async (req, res) => {
-    pool.connect((err, client, done) => {
-        const query = 
-           `SELECT
+  try {
+    const selectQuery =
+          `SELECT
             category,
             COUNT(category) AS count
             FROM transactions
@@ -141,23 +163,24 @@ module.exports.getTopFiveExpenses = async (req, res) => {
             ORDER BY count DESC
             LIMIT 5;`
 
-        client.query(query, (error, result) => {
-            done();
-            if (error) {
-                res.status(400).json({error})
-            } 
-            if(result.rows < '1') {
-                res.status(404).send({
-                status: 'Failed',
-                message: 'No top five data for this user',
-                });
-            } else {
-                res.status(200).send({
-                    status: 'Success',
-                    message: 'Successfully returned top five expense trend.',
-                    data: result.rows,
-                });
-            }
+    const { rows } = await query(selectQuery);
+
+   if(rows < '1') {
+        res.status(404).send({
+            status: 'Failed',
+            message: 'No top five data for this user'
         });
+    } else {
+        res.status(200).send({
+            status: 'Success',
+            message: 'Successfully returned expense trend per month',
+            data: rows,
+        });
+    }
+  } catch (err) {
+    res.status(500).send({
+      status: "failed",
+      message: "Error while Getting top five data for this user':" + err,
     });
+  }
 };
