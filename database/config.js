@@ -7,6 +7,9 @@ const config = {
   port: 5432,
   max: 10, // max number of clients in the pool
   idleTimeoutMillis: 30000,
+  ssl: {
+    rejectUnauthorized: false
+  }
 };
 
 const pool = new pg.Pool(config);
