@@ -5,12 +5,7 @@ const bodyParser = require('body-parser');
 const cors = require("cors");
 const logger = require('morgan')
 
-
-const corsOptions = {
-   origin: "http://localhost:3000"
-};
-
-app.use(cors(corsOptions));
+app.use(cors());
       
 
 app.use(logger('dev'));
